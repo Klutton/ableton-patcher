@@ -1,12 +1,14 @@
 package ableton
 
 import (
-	"github.com/charlievieth/fastwalk"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/charlievieth/fastwalk"
 )
 
 const (
@@ -32,8 +34,22 @@ func FindInstallations() ([]Installation, error) {
 	var err error
 	switch runtime.GOOS {
 	case "windows":
+		installDir := defaultInstallDirWindows
+		if _, statErr := os.Stat(installDir); os.IsNotExist(statErr) {
+			// Directory does not exist, prompt user for input
+			println("Default installation directory not found, input the path manually:")
+			var userInput string
+			_, scanErr := fmt.Scanln(&userInput)
+			if scanErr != nil {
+				return installations, scanErr
+			}
+			installDir = strings.TrimSpace(userInput)
+			if _, statErr2 := os.Stat(installDir); os.IsNotExist(statErr2) {
+				return installations, os.ErrNotExist
+			}
+		}
 		err = fastwalk.Walk(fwConfig,
-			defaultInstallDirWindows, func(path string, info fs.DirEntry, err error) error {
+			installDir, func(path string, info fs.DirEntry, err error) error {
 				if err != nil {
 					return nil
 				}
@@ -60,7 +76,21 @@ func FindInstallations() ([]Installation, error) {
 				return nil
 			})
 	case "darwin":
-		err = fastwalk.Walk(fwConfig, defaultInstallDirDarwin, func(path string, info fs.DirEntry, err error) error {
+		installDir := defaultInstallDirDarwin
+		if _, statErr := os.Stat(installDir); os.IsNotExist(statErr) {
+			// Directory does not exist, prompt user for input
+			println("Default installation directory not found, input the path manually:")
+			var userInput string
+			_, scanErr := fmt.Scanln(&userInput)
+			if scanErr != nil {
+				return installations, scanErr
+			}
+			installDir = strings.TrimSpace(userInput)
+			if _, statErr2 := os.Stat(installDir); os.IsNotExist(statErr2) {
+				return installations, os.ErrNotExist
+			}
+		}
+		err = fastwalk.Walk(fwConfig, installDir, func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
 			}
