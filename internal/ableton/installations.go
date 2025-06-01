@@ -1,7 +1,7 @@
 package ableton
 
 import (
-	"fmt"
+	"bufio"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,26 +28,39 @@ type InstallationData struct {
 
 var fwConfig = &fastwalk.Config{}
 
+// promptForInstallDir prompts the user for the installation directory of Ableton Live.
+func promptForInstallDir(defaultDir string) (string, error) {
+	if _, statErr := os.Stat(defaultDir); !os.IsNotExist(statErr) {
+		return defaultDir, nil
+	}
+
+	// defaultDir not found, prompt user for input
+	println("Default path \""+defaultDir+"\" not found, please enter the path to your Ableton Live installation directory:")
+	reader := bufio.NewReader(os.Stdin)
+	line, readErr := reader.ReadString('\n')
+	if readErr != nil {
+		return "", readErr
+	}
+
+	inputDir := strings.TrimSpace(line)
+	if _, statErr := os.Stat(inputDir); os.IsNotExist(statErr) {
+		return "", os.ErrNotExist
+	}
+
+	return inputDir, nil
+}
+
 func FindInstallations() ([]Installation, error) {
 	var installations []Installation
 
 	var err error
 	switch runtime.GOOS {
 	case "windows":
-		installDir := defaultInstallDirWindows
-		if _, statErr := os.Stat(installDir); os.IsNotExist(statErr) {
-			// Directory does not exist, prompt user for input
-			println("Default installation directory not found, input the path manually:")
-			var userInput string
-			_, scanErr := fmt.Scanln(&userInput)
-			if scanErr != nil {
-				return installations, scanErr
-			}
-			installDir = strings.TrimSpace(userInput)
-			if _, statErr2 := os.Stat(installDir); os.IsNotExist(statErr2) {
-				return installations, os.ErrNotExist
-			}
+		installDir, err := promptForInstallDir(defaultInstallDirWindows)
+		if err != nil {
+			return installations, err
 		}
+
 		err = fastwalk.Walk(fwConfig,
 			installDir, func(path string, info fs.DirEntry, err error) error {
 				if err != nil {
@@ -76,20 +89,11 @@ func FindInstallations() ([]Installation, error) {
 				return nil
 			})
 	case "darwin":
-		installDir := defaultInstallDirDarwin
-		if _, statErr := os.Stat(installDir); os.IsNotExist(statErr) {
-			// Directory does not exist, prompt user for input
-			println("Default installation directory not found, input the path manually:")
-			var userInput string
-			_, scanErr := fmt.Scanln(&userInput)
-			if scanErr != nil {
-				return installations, scanErr
-			}
-			installDir = strings.TrimSpace(userInput)
-			if _, statErr2 := os.Stat(installDir); os.IsNotExist(statErr2) {
-				return installations, os.ErrNotExist
-			}
+		installDir, err := promptForInstallDir(defaultInstallDirDarwin)
+		if err != nil {
+			return installations, err
 		}
+
 		err = fastwalk.Walk(fwConfig, installDir, func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return nil
