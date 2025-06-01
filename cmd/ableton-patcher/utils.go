@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 )
 
 func LogFatalError(caller string, err error) {
 	message := fmt.Sprintf("%s: %s", caller, err.Error())
 	fmt.Println(message)
+	debug.PrintStack()
 	Shutdown()
 }
 
